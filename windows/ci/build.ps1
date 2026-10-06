@@ -50,16 +50,24 @@ $pgMinor = [int]$Matches[2]
 if ($pgMajor -eq 14) {
     $createAsPath = Join-Path $UpstreamDir "createas.c"
     $createAsText = Get-Content $createAsPath -Raw
-    $invalidObjectMarker = "return InvalidObjectAddress;"
-    $invalidCount = ([regex]::Matches($createAsText, [regex]::Escape($invalidObjectMarker))).Count
-    if ($invalidCount -ne 1) {
-        throw "Expected exactly one InvalidObjectAddress return in createas.c, found $invalidCount."
+    $invalidObjectPattern = 'if\s*\(CreateTableAsRelExists\(stmt\)\)\s*return\s+InvalidObjectAddress\s*;'
+    $invalidMatches = [regex]::Matches($createAsText, $invalidObjectPattern)
+    if ($invalidMatches.Count -ne 1) {
+        throw "Expected exactly one CreateTableAsRelExists/InvalidObjectAddress block in createas.c, found $($invalidMatches.Count)."
     }
     $invalidReplacement = @'
-ObjectAddressSet(address, InvalidOid, InvalidOid);
+if (CreateTableAsRelExists(stmt))
+        {
+            ObjectAddressSet(address, InvalidOid, InvalidOid);
             return address;
+        }
 '@
-    $createAsText = $createAsText.Replace($invalidObjectMarker, $invalidReplacement.TrimEnd())
+    $createAsText = [regex]::Replace(
+        $createAsText,
+        $invalidObjectPattern,
+        $invalidReplacement.TrimEnd(),
+        [Text.RegularExpressions.RegexOptions]::Singleline
+    )
     [IO.File]::WriteAllText($createAsPath, $createAsText, [Text.UTF8Encoding]::new($false))
 
     $ruleutils14Path = Join-Path $UpstreamDir "ruleutils_14.c"
