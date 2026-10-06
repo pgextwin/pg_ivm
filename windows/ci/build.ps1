@@ -35,6 +35,93 @@ if ($version -ne "1.16") {
     throw "Unexpected pg_ivm version: $version"
 }
 
+$pgConfig = Join-Path $PgRoot "bin\pg_config.exe"
+$pgVersionText = (& $pgConfig --version).Trim()
+if ($LASTEXITCODE -ne 0 -or $pgVersionText -notmatch '^PostgreSQL\s+(\d+)\.(\d+)') {
+    throw "Could not determine PostgreSQL major/minor from pg_config: '$pgVersionText'"
+}
+$pgMajor = [int]$Matches[1]
+$pgMinor = [int]$Matches[2]
+
+# PostgreSQL 14's Windows import library does not expose two backend data
+# symbols referenced by pg_ivm's copied PG14 compatibility code. Replace those
+# data references in the disposable upstream checkout with equivalent behavior
+# that uses only exported functions/local ObjectAddress initialization.
+if ($pgMajor -eq 14) {
+    $createAsPath = Join-Path $UpstreamDir "createas.c"
+    $createAsText = Get-Content $createAsPath -Raw
+    $invalidObjectMarker = "return InvalidObjectAddress;"
+    $invalidCount = ([regex]::Matches($createAsText, [regex]::Escape($invalidObjectMarker))).Count
+    if ($invalidCount -ne 1) {
+        throw "Expected exactly one InvalidObjectAddress return in createas.c, found $invalidCount."
+    }
+    $invalidReplacement = @'
+ObjectAddressSet(address, InvalidOid, InvalidOid);
+            return address;
+'@
+    $createAsText = $createAsText.Replace($invalidObjectMarker, $invalidReplacement.TrimEnd())
+    [IO.File]::WriteAllText($createAsPath, $createAsText, [Text.UTF8Encoding]::new($false))
+
+    $ruleutils14Path = Join-Path $UpstreamDir "ruleutils_14.c"
+    $ruleutils14Text = Get-Content $ruleutils14Path -Raw
+    $quoteMarker = "if (quote_all_identifiers)"
+    $quoteCount = ([regex]::Matches($ruleutils14Text, [regex]::Escape($quoteMarker))).Count
+    if ($quoteCount -ne 1) {
+        throw "Expected exactly one quote_all_identifiers reference in ruleutils_14.c, found $quoteCount."
+    }
+    if (-not $ruleutils14Text.Contains('#include "utils/guc.h"')) {
+        $includeMarker = '#include "utils/fmgroids.h"'
+        if (-not $ruleutils14Text.Contains($includeMarker)) {
+            throw "Expected utils/fmgroids.h include was not found in ruleutils_14.c."
+        }
+        $ruleutils14Text = $ruleutils14Text.Replace(
+            $includeMarker,
+            $includeMarker + [Environment]::NewLine + '#include "utils/guc.h"'
+        )
+    }
+    $ruleutils14Text = $ruleutils14Text.Replace(
+        $quoteMarker,
+        'if (strcmp(GetConfigOption("quote_all_identifiers", false, false), "on") == 0)'
+    )
+    [IO.File]::WriteAllText($ruleutils14Path, $ruleutils14Text, [Text.UTF8Encoding]::new($false))
+
+    Write-Host "Applied PostgreSQL 14 Windows data-symbol compatibility edits."
+}
+
+# PostgreSQL 14/15 do not automatically export SQL-callable extension
+# functions the way newer PostgreSQL Windows headers do. Generate an explicit
+# DEF file from upstream PG_FUNCTION_INFO_V1 declarations. Using the same DEF
+# on every supported major also gives us a stable, auditable export surface.
+$exports = @("Pg_magic_func", "_PG_init")
+foreach ($sourceFile in Get-ChildItem -Path $UpstreamDir -File -Filter "*.c") {
+    $source = Get-Content $sourceFile.FullName -Raw
+    foreach ($match in [regex]::Matches($source, 'PG_FUNCTION_INFO_V1\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)')) {
+        $exports += $match.Groups[1].Value
+    }
+}
+$exports = @($exports | Sort-Object -Unique)
+
+$defPath = Join-Path $UpstreamDir "pg_ivm.pgextwin.def"
+(@("LIBRARY pg_ivm", "EXPORTS") + @($exports | ForEach-Object { "    $_" })) |
+    Set-Content -Path $defPath -Encoding ascii
+
+$mesonPath = Join-Path $UpstreamDir "meson.build"
+$mesonText = Get-Content $mesonPath -Raw
+$moduleMarker = @'
+shared_module(module_name,
+  pg_ivm_sources,
+'@
+$moduleReplacement = @'
+shared_module(module_name,
+  pg_ivm_sources,
+  vs_module_defs: 'pg_ivm.pgextwin.def',
+'@
+if (-not $mesonText.Contains($moduleMarker)) {
+    throw "Expected upstream shared_module block was not found in meson.build."
+}
+$mesonText = $mesonText.Replace($moduleMarker, $moduleReplacement)
+[IO.File]::WriteAllText($mesonPath, $mesonText, [Text.UTF8Encoding]::new($false))
+
 $python = (Get-Command python.exe -ErrorAction Stop).Source
 & $python -m pip install --disable-pip-version-check --quiet "meson==1.8.3" "ninja==1.11.1.4"
 if ($LASTEXITCODE -ne 0) {
@@ -72,11 +159,27 @@ if ($null -eq $dllItem) {
 $dllOut = Join-Path $UpstreamDir "pg_ivm.dll"
 Copy-Item $dllItem.FullName $dllOut -Force
 
-$dumpbin = (Get-Command dumpbin.exe -ErrorAction SilentlyContinue)
-if ($null -ne $dumpbin) {
-    Write-Host "----- pg_ivm.dll exports -----"
-    & $dumpbin.Source /exports $dllOut
-    Write-Host "------------------------------"
+$dumpCmd = Join-Path $tempRoot "pg_ivm-dump-exports.cmd"
+@"
+@echo off
+call "$vsDevCmd" -arch=x64 -host_arch=x64 >nul
+if errorlevel 1 exit /b %errorlevel%
+dumpbin /nologo /exports "$dllOut"
+"@ | Set-Content -Path $dumpCmd -Encoding ascii
+
+$exportOutput = @(& cmd.exe /d /c $dumpCmd)
+if ($LASTEXITCODE -ne 0) {
+    throw "dumpbin failed while validating pg_ivm.dll exports."
+}
+$exportText = $exportOutput -join [Environment]::NewLine
+Write-Host "----- pg_ivm.dll exports -----"
+$exportOutput | ForEach-Object { Write-Host $_ }
+Write-Host "------------------------------"
+
+foreach ($requiredExport in $exports) {
+    if ($exportText -notmatch "(?m)\b$([regex]::Escape($requiredExport))\b") {
+        throw "Required DLL export was not found: $requiredExport"
+    }
 }
 
-Write-Host "Built pg_ivm $version using the upstream Meson/MSVC Windows path."
+Write-Host "Built pg_ivm $version for PostgreSQL $pgMajor.$pgMinor with exports: $($exports -join ', ')"
