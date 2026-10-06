@@ -96,7 +96,9 @@ $exports = @("Pg_magic_func", "_PG_init")
 foreach ($sourceFile in Get-ChildItem -Path $UpstreamDir -File -Filter "*.c") {
     $source = Get-Content $sourceFile.FullName -Raw
     foreach ($match in [regex]::Matches($source, 'PG_FUNCTION_INFO_V1\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)')) {
-        $exports += $match.Groups[1].Value
+        $functionName = $match.Groups[1].Value
+        $exports += $functionName
+        $exports += "pg_finfo_$functionName"
     }
 }
 $exports = @($exports | Sort-Object -Unique)
