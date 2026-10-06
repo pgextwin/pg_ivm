@@ -12,7 +12,7 @@ upstream v1.16はPostgreSQL 13〜18対応を表明しています。
 
 pgextwinでは、現在PostgreSQLコミュニティのメンテナンス対象であるPostgreSQL 14〜18を配布対象とします。
 
-初回Release tagは次を予定しています。
+公開中のRelease tagは次のとおりです。
 
 ~~~text
 v1.16-windows.1
