@@ -68,7 +68,72 @@ if (CreateTableAsRelExists(stmt))
         $invalidReplacement.TrimEnd(),
         [Text.RegularExpressions.RegexOptions]::Singleline
     )
+
+    $coreExistsCall = "if (CreateTableAsRelExists(stmt))"
+    if (-not $createAsText.Contains($coreExistsCall)) {
+        throw "Expected CreateTableAsRelExists call was not found after the PG14 patch."
+    }
+    $createAsText = $createAsText.Replace(
+        $coreExistsCall,
+        "if (pgextwin_CreateTableAsRelExists(stmt))"
+    )
+
+    $execMarker = @'
+/*
+ * ExecCreateImmv -- execute a create_immv() function
+'@
+    if (-not $createAsText.Contains($execMarker)) {
+        throw "Expected ExecCreateImmv marker was not found in createas.c."
+    }
+    $localExistsHelper = @'
+/*
+ * Windows compatibility helper for PostgreSQL 14.
+ *
+ * PostgreSQL 14's backend exposes CreateTableAsRelExists(), but pg_ivm's
+ * copied CREATE AS path is more reliable on Windows when the same check stays
+ * inside the extension DLL. This is equivalent to the PostgreSQL 14 logic for
+ * the create_immv() call path.
+ */
+static bool
+pgextwin_CreateTableAsRelExists(CreateTableAsStmt *ctas)
+{
+    Oid nspid;
+    Oid oldrelid;
+    IntoClause *into = ctas->into;
+
+    nspid = RangeVarGetCreationNamespace(into->rel);
+    oldrelid = get_relname_relid(into->rel->relname, nspid);
+
+    if (OidIsValid(oldrelid))
+    {
+        if (!ctas->if_not_exists)
+            ereport(ERROR,
+                    (errcode(ERRCODE_DUPLICATE_TABLE),
+                     errmsg("relation \"%s\" already exists",
+                            into->rel->relname)));
+
+        ereport(NOTICE,
+                (errcode(ERRCODE_DUPLICATE_TABLE),
+                 errmsg("relation \"%s\" already exists, skipping",
+                        into->rel->relname)));
+        return true;
+    }
+
+    return false;
+}
+
+'@
+    $createAsText = $createAsText.Replace($execMarker, $localExistsHelper + $execMarker)
     [IO.File]::WriteAllText($createAsPath, $createAsText, [Text.UTF8Encoding]::new($false))
+
+    $pgIvmPath = Join-Path $UpstreamDir "pg_ivm.c"
+    $pgIvmText = Get-Content $pgIvmPath -Raw
+    $qcMarker = "QueryCompletion qc;"
+    if (-not $pgIvmText.Contains($qcMarker)) {
+        throw "Expected QueryCompletion declaration was not found in pg_ivm.c."
+    }
+    $pgIvmText = $pgIvmText.Replace($qcMarker, "QueryCompletion qc = {0};")
+    [IO.File]::WriteAllText($pgIvmPath, $pgIvmText, [Text.UTF8Encoding]::new($false))
 
     $ruleutils14Path = Join-Path $UpstreamDir "ruleutils_14.c"
     $ruleutils14Text = Get-Content $ruleutils14Path -Raw
