@@ -1,2 +1,143 @@
-# pg_ivm
-Unofficial Windows x64 binaries for pg_ivm, built from the official upstream source.
+# pg_ivm Windows binaries
+
+[日本語](README_ja.md) | **English**
+
+This repository provides **unofficial Windows x64 binaries** of [pg_ivm](https://github.com/sraoss/pg_ivm), an Incremental View Maintenance extension for PostgreSQL.
+
+The packages are built from the official upstream source and validated against ordinary Windows PostgreSQL installations.
+
+## Upstream
+
+- repository: `sraoss/pg_ivm`
+- ref: `v1.16`
+- version: 1.16
+- upstream compatibility: PostgreSQL 13–18
+- pgextwin target: currently maintained PostgreSQL 14–18
+- license: PostgreSQL-style; see `LICENSE`
+
+The first pgextwin package-set release is planned as:
+
+~~~text
+v1.16-windows.1
+~~~
+
+Assets use explicit PostgreSQL-major names:
+
+~~~text
+pg_ivm-v1.16-pg14-windows-x64.zip
+...
+pg_ivm-v1.16-pg18-windows-x64.zip
+~~~
+
+## What pg_ivm does
+
+pg_ivm provides **Incremental View Maintenance (IVM)**. An Incrementally Maintainable Materialized View (IMMV) is updated by triggers when its base tables change, instead of requiring a full `REFRESH MATERIALIZED VIEW` after every change.
+
+For example:
+
+~~~sql
+CREATE EXTENSION pg_ivm;
+
+CREATE TABLE t (
+    id integer PRIMARY KEY,
+    payload integer NOT NULL
+);
+
+INSERT INTO t VALUES (1, 10), (2, 20);
+
+SELECT pgivm.create_immv(
+    'public.t_immv',
+    'SELECT id, payload FROM public.t'
+);
+~~~
+
+Afterward, INSERT/UPDATE/DELETE operations on `t` are reflected in `t_immv` immediately in the same transaction.
+
+The upstream pg_ivm documentation is authoritative for supported query shapes, locking, concurrency behavior, restrictions, and upgrade procedures.
+
+## Installation
+
+1. Choose the ZIP matching the PostgreSQL **major version**.
+2. Stop PostgreSQL before replacing extension binaries.
+3. Copy `lib/pg_ivm.dll` to PostgreSQL's `lib` directory.
+4. Copy `share/extension/*` to PostgreSQL's `share/extension` directory.
+5. Configure pg_ivm for preload.
+6. Restart PostgreSQL when using `shared_preload_libraries`.
+7. Run:
+
+~~~sql
+CREATE EXTENSION pg_ivm;
+~~~
+
+### Preload requirement
+
+Upstream pg_ivm requires the module to be loaded through either:
+
+~~~conf
+shared_preload_libraries = 'pg_ivm'
+~~~
+
+or:
+
+~~~conf
+session_preload_libraries = 'pg_ivm'
+~~~
+
+For a normal server-wide Windows installation, `shared_preload_libraries` is usually the simpler choice.
+
+If other extensions are already preloaded, use a comma-separated list rather than replacing them.
+
+## Windows build strategy
+
+pg_ivm v1.16 already contains an MSVC-aware Meson build path. pgextwin deliberately uses that upstream path rather than maintaining a forked Windows build.
+
+The build:
+
+1. pins upstream `v1.16`,
+2. verifies the exact upstream `LICENSE`,
+3. installs pinned Meson/Ninja build tooling,
+4. initializes the MSVC x64 environment,
+5. puts the target PostgreSQL `bin` directory on `PATH` so upstream Meson resolves the matching `pg_config`,
+6. builds `pg_ivm.dll` with the upstream `meson.build`.
+
+A historical Windows linkage problem was reported upstream as issue #138. Upstream commit `49b52bcd5ec96c2c496212e4a9cd11b023dad0a9` added the required `PGDLLEXPORT` declarations, and that fix is already present in v1.16.
+
+pgextwin therefore does **not** apply a source compatibility patch unless a supported PostgreSQL version proves one is required in CI.
+
+## Functional CI
+
+A successful compile is not sufficient. Every supported PostgreSQL major must pass:
+
+1. exact upstream LICENSE verification,
+2. upstream Meson/MSVC x64 build,
+3. installation into the matching PostgreSQL Windows distribution,
+4. PostgreSQL startup with pg_ivm preloaded,
+5. `CREATE EXTENSION pg_ivm`,
+6. creation of a real primary-key base table,
+7. `pgivm.create_immv(...)`,
+8. INSERT, UPDATE, and DELETE operations on the base table,
+9. verification that the IMMV reflects every change immediately,
+10. verification that `pgivm.get_immv_def(...)` returns the expected definition,
+11. Windows x64 ZIP packaging.
+
+Pull requests and pushes to `main` validate only. A branch named `release/<tag>` publishes a GitHub Release only after the complete matrix succeeds.
+
+## Dump and PostgreSQL upgrade considerations
+
+pg_ivm v1.16 stores internal query metadata that is PostgreSQL-version-sensitive. Upstream therefore provides `scripts/pg_ivm_dump_metadata`, which emits calls to `pgivm.restore_immv()`.
+
+Before `pg_dump` or `pg_upgrade`, follow the current upstream procedure for preserving/recreating IMMV metadata. On Windows, the equivalent SQL can be generated directly with `psql`:
+
+~~~powershell
+psql.exe -XAtqc "SELECT * FROM pgivm.get_restore_immv_commands()" mydb > immv_restore.sql
+~~~
+
+After restore or upgrade, execute the generated SQL as directed by upstream.
+
+Do not treat the IMMV metadata table as ordinary portable application data across PostgreSQL major versions.
+
+## Licensing
+
+The repository `LICENSE` is an exact copy of the pinned upstream pg_ivm license. Release ZIPs copy `LICENSE` directly from the upstream checkout used for that package.
+
+These binaries are unofficial pgextwin builds and are not official binary releases from the pg_ivm or PostgreSQL projects.
