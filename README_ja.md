@@ -103,7 +103,29 @@ CIでは:
 
 過去にWindowsでfunction linkage不整合がupstream issue #138として報告されましたが、commit `49b52bcd5ec96c2c496212e4a9cd11b023dad0a9` で必要な `PGDLLEXPORT` が追加されており、v1.16にはこの修正が含まれています。
 
-そのためpgextwinでは、CIで必要性が確認されない限り追加のsource patchを適用しません。
+### PostgreSQL 14/15のWindows互換処理
+
+PG14〜18へ対象を広げたpilotでは、標準Windows版PostgreSQLの旧世代に追加差分があることを確認しました。
+
+PostgreSQL 14/15では、新しい世代と異なり `PG_FUNCTION_INFO_V1(...)` によるSQL関数群が必要な形ですべて自動exportされません。そのためpgextwinはpinned upstream sourceからDEFを生成し、次を明示exportします。
+
+- `Pg_magic_func`
+- `_PG_init`
+- `PG_FUNCTION_INFO_V1(...)` で宣言された全SQL関数
+- 対応する `pg_finfo_<function>` V1 ABI metadata関数
+
+PG16〜18でも同じ明示export一覧を利用し、CIで `dumpbin /exports` による検証を行います。
+
+PostgreSQL 14ではさらに、pg_ivmが内包するPG14互換コードから `InvalidObjectAddress` と `quote_all_identifiers` というbackend data symbolを参照しますが、通常のEDB Windows配布の `postgres.lib` ではこの経路をそのままlinkできません。
+
+PG14だけbuild用の一時checkoutに対して:
+
+- `InvalidObjectAddress` をimportせず `ObjectAddressSet(...)` で同値の無効ObjectAddressをローカル生成
+- `quote_all_identifiers` data variableをimportせず、export済みの `GetConfigOption(...)` で同じGUC値を取得
+
+という置換を行います。
+
+PostgreSQL本体を置換・再buildする必要はなく、不透明な互換objectもrepositoryには保存しません。
 
 ## CIの合格条件
 
