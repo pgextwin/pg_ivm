@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "name": "pg_ivm",
+  "upstream": {
+    "repository": "sraoss/pg_ivm",
+    "ref": "v1.16",
+    "version": "1.16"
+  },
+  "postgresql": {
+    "majors": [
+      14,
+      15,
+      16,
+      17,
+      18
+    ]
+  },
+  "windows": {
+    "architecture": "x64"
+  },
+  "license": {
+    "verifyAgainstUpstream": true,
+    "upstreamPath": "LICENSE"
+  }
+}
