@@ -15,7 +15,7 @@ The packages are built from the official upstream source and validated against o
 - pgextwin target: currently maintained PostgreSQL 14–18
 - license: PostgreSQL-style; see `LICENSE`
 
-The first pgextwin package-set release is planned as:
+The current pgextwin package-set release is:
 
 ~~~text
 v1.16-windows.1
