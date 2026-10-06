@@ -134,7 +134,20 @@ psql.exe -XAtqc "SELECT * FROM pgivm.get_restore_immv_commands()" mydb > immv_re
 
 upgrade/restoreの具体的な順番はupstream v1.16以降の最新READMEに従ってください。
 
-## 9. CIでの実動作確認
+## 9. PostgreSQL 14/15の互換処理
+
+PostgreSQL 14/15のWindows DLL exportモデルはPG16以降と差があります。
+
+pgextwin packageでは、upstream source中の `PG_FUNCTION_INFO_V1(...)` を検出してDEFを生成し、SQL関数本体と `pg_finfo_*` V1 metadata、`Pg_magic_func`、`_PG_init` を明示exportします。
+
+PostgreSQL 14ではさらに、copied backend compatibility codeが参照する2つのdata symbolについて、build workspace内だけで次の置換を行います。
+
+- `InvalidObjectAddress` → `ObjectAddressSet(...)` を使ったローカル値
+- `quote_all_identifiers` → `GetConfigOption(...)` を使ったGUC取得
+
+この互換処理はupstream v1.16をforkするものではなく、CIの一時checkoutにだけ適用されます。
+
+## 10. CIでの実動作確認
 
 pgextwinでは各PostgreSQL majorについて:
 
@@ -153,7 +166,7 @@ pgextwinでは各PostgreSQL majorについて:
 
 単なるcompile成功やDLL loadだけでは合格にしません。
 
-## 10. 正規の仕様情報
+## 11. 正規の仕様情報
 
 pgextwinはWindows binaryのbuild・検証・配布を担当します。
 
