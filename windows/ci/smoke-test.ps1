@@ -92,31 +92,6 @@ DELETE FROM public.pgextwin_ivm_probe WHERE id = 1;
         throw "pg_ivm functional setup failed."
     }
 
-    Write-Host "----- pg_ivm catalog diagnostics -----"
-    & $psql -h 127.0.0.1 -p $PgPort -U postgres -d postgres -P pager=off -c @"
-SELECT
-    m.immvrelid::oid AS immv_oid,
-    m.immvrelid::text AS immv_regclass,
-    n.nspname,
-    c.relname,
-    c.relkind
-FROM pgivm.pg_ivm_immv AS m
-LEFT JOIN pg_class AS c ON c.oid = m.immvrelid::oid
-LEFT JOIN pg_namespace AS n ON n.oid = c.relnamespace
-ORDER BY 1;
-
-SELECT
-    to_regclass('public.pgextwin_ivm_probe_mv') AS expected_public,
-    to_regclass('pgextwin_ivm_probe_mv') AS visible_unqualified;
-
-SELECT n.nspname, c.relname, c.relkind
-FROM pg_class AS c
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-WHERE c.relname LIKE '%pgextwin_ivm_probe%'
-ORDER BY 1,2;
-"@
-    Write-Host "--------------------------------------"
-
     $count = ((& $psql -h 127.0.0.1 -p $PgPort -U postgres -d postgres -Atqc "SELECT count(*) FROM public.pgextwin_ivm_probe_mv;") | Select-Object -Last 1).Trim()
     $sum = ((& $psql -h 127.0.0.1 -p $PgPort -U postgres -d postgres -Atqc "SELECT sum(payload) FROM public.pgextwin_ivm_probe_mv;") | Select-Object -Last 1).Trim()
     $row2 = ((& $psql -h 127.0.0.1 -p $PgPort -U postgres -d postgres -Atqc "SELECT payload FROM public.pgextwin_ivm_probe_mv WHERE id = 2;") | Select-Object -Last 1).Trim()
