@@ -1,0 +1,44 @@
+{
+  "contractVersion": 2,
+  "extension": "pg_ivm",
+  "smokeTest": {
+    "script": "windows/ci/smoke-test.ps1"
+  },
+  "runtimeRequirements": {
+    "extensionCreation": "required",
+    "preload": "either",
+    "backgroundWorker": false,
+    "clientExecutable": {
+      "required": false,
+      "packagePaths": []
+    }
+  },
+  "testSetup": {
+    "preload": "shared",
+    "backgroundWorker": false,
+    "settings": []
+  },
+  "coverage": {
+    "createExtension": "covered",
+    "backgroundWorker": "not-applicable",
+    "clientExecutable": "not-applicable",
+    "serverLogAssertions": "not-applicable",
+    "upgrade": "not-covered"
+  },
+  "functionalScenarios": [
+    {
+      "id": "immv-reflects-dml",
+      "description": "Creates an IMMV and verifies INSERT, UPDATE, and DELETE changes are reflected immediately in its rows and aggregate values.",
+      "evidence": [
+        "sql-result"
+      ]
+    },
+    {
+      "id": "immv-definition-retrievable",
+      "description": "Verifies pgivm.get_immv_def returns the definition of the created IMMV.",
+      "evidence": [
+        "sql-result"
+      ]
+    }
+  ]
+}
