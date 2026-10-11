@@ -15,7 +15,7 @@ pgextwinでは、現在PostgreSQLコミュニティのメンテナンス対象�
 公開中のRelease tagは次のとおりです。
 
 ~~~text
-v1.16-windows.1
+v1.16-windows.2
 ~~~
 
 ZIP名:
