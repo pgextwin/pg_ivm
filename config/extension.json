@@ -4,7 +4,8 @@
   "upstream": {
     "repository": "sraoss/pg_ivm",
     "ref": "v1.16",
-    "version": "1.16"
+    "version": "1.16",
+    "commit": "22b4b4520a3d2be896f07d3d55fb34772a5ecf8e"
   },
   "postgresql": {
     "majors": [
