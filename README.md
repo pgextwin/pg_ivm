@@ -18,7 +18,7 @@ The packages are built from the official upstream source and validated against o
 The current pgextwin package-set release is:
 
 ~~~text
-v1.16-windows.1
+v1.16-windows.2
 ~~~
 
 Assets use explicit PostgreSQL-major names:
