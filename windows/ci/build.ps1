@@ -31,8 +31,20 @@ if ($control -notmatch "default_version\s*=\s*'([^']+)'") {
     throw "Could not determine pg_ivm version from pg_ivm.control."
 }
 $version = $Matches[1]
-if ($version -ne "1.16") {
-    throw "Unexpected pg_ivm version: $version"
+# Compare the real upstream control version to the SHA-pinned packaging manifest.
+# A new upstream version must still be pinned and agree with the control file.
+$manifestPath = Join-Path $PSScriptRoot '../../config/extension.json'
+if (-not (Test-Path $manifestPath)) {
+    throw "Missing packaging extension manifest: $manifestPath"
+}
+$manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+if ($manifest.name -ne 'pg_ivm' -or
+    [string]::IsNullOrWhiteSpace([string]$manifest.upstream.version)) {
+    throw 'Invalid pg_ivm packaging manifest/version'
+}
+$expectedVersion = [string]$manifest.upstream.version
+if ($expectedVersion -notmatch '^\d+\.\d+(?:\.\d+)?$' -or $version -ne $expectedVersion) {
+    throw "pg_ivm control version '$version' differs from manifest '$expectedVersion'"
 }
 
 $pgConfig = Join-Path $PgRoot "bin\pg_config.exe"
