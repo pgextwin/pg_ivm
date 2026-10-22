@@ -87,4 +87,4 @@ jobs:
       contents: read
       actions: read
       pull-requests: read
-    uses: pgextwin/build/.github/workflows/automatic-postmerge-audit-readonly.yml@2c859c83d699a0da841d97d536452249696fd91e
+    uses: pgextwin/build/.github/workflows/automatic-postmerge-audit-readonly.yml@8a41cedf34108bbb9b07a24ff4ddde42d9621b97
