@@ -122,3 +122,21 @@ jobs:
       actions: read
       attestations: read
     uses: pgextwin/build/.github/workflows/verify-signed-candidate-readonly.yml@9ec4dde0b6defabc10cf3527c06cb69c13e5a7ff
+
+  merged_candidate_scheduled_oidc:
+    name: Requalify existing merged candidate with genuine OIDC signature (NO RELEASE)
+    needs: authorize
+    if: >-
+      ${{ github.event_name == 'schedule' &&
+          github.ref == 'refs/heads/main' &&
+          needs.authorize.result == 'success' &&
+          needs.authorize.outputs.mode == 'none' }}
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    uses: pgextwin/build/.github/workflows/requalify-merged-candidate-signed.yml@12e9c809d963c82735e23680ac1838693a6de356
