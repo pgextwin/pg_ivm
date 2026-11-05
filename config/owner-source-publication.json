@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "sourceKind": "OWNER_ISSUE_COMMENT_MAIN_SIGNING",
+  "releasePolicy": "automatic-signed-schedule"
+}
