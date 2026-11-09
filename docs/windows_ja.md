@@ -2,7 +2,7 @@
 
 ## 1. 対象
 
-pgextwinのpg_ivm packageはWindows x64向けです。
+pgextwinのpg_ivmパッケージはWindows x64向けです。
 
 PostgreSQL 14〜18について、それぞれ専用ZIPを作成します。必ず実行対象PostgreSQLの**メジャーバージョンと一致するZIP**を使用してください。
 
@@ -82,7 +82,7 @@ SELECT pgivm.create_immv(
 SELECT * FROM public.ivm_test_mv ORDER BY id;
 ~~~
 
-次にbase tableを変更します。
+次に基になるテーブルを変更します。
 
 ~~~sql
 INSERT INTO public.ivm_test VALUES (4,40);
@@ -100,7 +100,7 @@ IMMV側にもINSERT / UPDATE / DELETEが即時反映されていることを確�
 
 ## 6. 通常のMaterialized Viewとの違い
 
-通常のMaterialized Viewは、base tableが変わっても自動では更新されず、一般に:
+通常のマテリアライズドビューは、基になるテーブルが変わっても自動では更新されず、一般に:
 
 ~~~sql
 REFRESH MATERIALIZED VIEW ...
@@ -164,7 +164,7 @@ pgextwinでは各PostgreSQL majorについて:
 
 まで行います。
 
-単なるcompile成功やDLL loadだけでは合格にしません。
+コンパイルの成功やDLLのロードだけでは合格としません。
 
 ## 11. 正規の仕様情報
 
