@@ -156,13 +156,16 @@ if (Test-Path $buildDir) {
     Remove-Item $buildDir -Recurse -Force
 }
 
+# PostgreSQL 19 headers use C11 keywords (_Noreturn, alignas) that the
+# MSVC default C mode rejects (C2054/C2061 in c.h); PG19 requires C11.
+$cStdOption = if ($pgMajor -ge 19) { " -Dc_std=c11" } else { "" }
 $cmdFile = Join-Path $tempRoot "pg_ivm-build.cmd"
 @"
 @echo off
 call "$vsDevCmd" -arch=x64 -host_arch=x64
 if errorlevel 1 exit /b %errorlevel%
 set "PATH=$PgRoot\bin;%PATH%"
-"$python" -m mesonbuild.mesonmain setup "$buildDir" "$UpstreamDir" --backend ninja --buildtype=release
+"$python" -m mesonbuild.mesonmain setup "$buildDir" "$UpstreamDir" --backend ninja --buildtype=release$cStdOption
 if errorlevel 1 exit /b %errorlevel%
 "$python" -m mesonbuild.mesonmain compile -C "$buildDir"
 if errorlevel 1 exit /b %errorlevel%
