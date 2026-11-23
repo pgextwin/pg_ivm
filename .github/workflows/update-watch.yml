@@ -127,7 +127,7 @@ jobs:
       contents: read
       actions: read
       attestations: read
-    uses: pgextwin/build/.github/workflows/verify-signed-candidate-readonly.yml@9ec4dde0b6defabc10cf3527c06cb69c13e5a7ff
+    uses: pgextwin/build/.github/workflows/verify-signed-candidate-readonly.yml@0ba07c7ad9fdbf20afba0a10264ecadb01ecc3df
 
   merged_candidate_scheduled_oidc:
     name: Requalify existing merged candidate with genuine OIDC signature (NO RELEASE)
