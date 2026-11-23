@@ -1,7 +1,7 @@
 name: Upstream candidate after verified central daily fleet scan
 
-# Existing central watch: 00:00 UTC. Candidate preflight: 03:30 UTC.
-# Scheduled candidate creation only when central report and exact main match.
+# The :30 schedule also starts merged-candidate requalification.
+# Enable PGEXTWIN_FLEET_CANDIDATE_CUTOVER after the central writer and audits are ready.
 on:
   schedule:
     - cron: "30 * * * *"
@@ -22,18 +22,21 @@ concurrency:
 
 jobs:
   authorize:
-    name: Read-only latest 17-fleet success and exact protected main preflight
+    name: Check latest fleet scan for requalification and candidate fallback
     if: github.event_name == 'schedule'
     permissions:
       contents: read
-    uses: pgextwin/build/.github/workflows/operator-update-auto.yml@7788623fa49e56b1301090bea4f023ea86405657
+    uses: pgextwin/build/.github/workflows/operator-update-auto.yml@e44ae86e68ae5f5b72a9dd476321b50529ebccd4
     with:
-      detector_sha: 7788623fa49e56b1301090bea4f023ea86405657
+      detector_sha: e44ae86e68ae5f5b72a9dd476321b50529ebccd4
 
   watch_candidate:
     name: Explicit upstream check and Issue reconciliation
     needs: authorize
-    if: ${{ needs.authorize.outputs.mode == 'candidate' }}
+    if: >-
+      ${{ github.event_name == 'schedule' &&
+          vars.PGEXTWIN_FLEET_CANDIDATE_CUTOVER != 'enabled' &&
+          needs.authorize.outputs.mode == 'candidate' }}
     permissions:
       contents: read
       issues: write
@@ -46,7 +49,11 @@ jobs:
   candidate:
     name: Prepare requested SHA-pinned Windows candidate (never Release)
     needs: [authorize, watch_candidate]
-    if: ${{ needs.authorize.outputs.mode == 'candidate' && needs.watch_candidate.result == 'success' }}
+    if: >-
+      ${{ github.event_name == 'schedule' &&
+          vars.PGEXTWIN_FLEET_CANDIDATE_CUTOVER != 'enabled' &&
+          needs.authorize.outputs.mode == 'candidate' &&
+          needs.watch_candidate.result == 'success' }}
     permissions:
       contents: write
       pull-requests: write
