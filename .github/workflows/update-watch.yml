@@ -110,7 +110,7 @@ jobs:
       id-token: write
       attestations: write
       artifact-metadata: write
-    uses: pgextwin/build/.github/workflows/build-extension-attested.yml@5756b3c5136a8bf4db710016cfe97555f0a71c6d
+    uses: pgextwin/build/.github/workflows/build-extension-attested.yml@b81cd7df4956d2703a7c4146e759adb01c7e04e1
     with:
       extension_config_path: config/extension.json
       test_contract_path: config/test-contract.json
@@ -127,7 +127,7 @@ jobs:
       contents: read
       actions: read
       attestations: read
-    uses: pgextwin/build/.github/workflows/verify-signed-candidate-readonly.yml@0ba07c7ad9fdbf20afba0a10264ecadb01ecc3df
+    uses: pgextwin/build/.github/workflows/verify-signed-candidate-readonly.yml@9f4a1aab650b0a35f30729ff3e97013b1bb66490
 
   merged_candidate_scheduled_oidc:
     name: Requalify existing merged candidate with genuine OIDC signature (NO RELEASE)
@@ -145,4 +145,4 @@ jobs:
       id-token: write
       attestations: write
       artifact-metadata: write
-    uses: pgextwin/build/.github/workflows/requalify-merged-candidate-signed.yml@12e9c809d963c82735e23680ac1838693a6de356
+    uses: pgextwin/build/.github/workflows/requalify-merged-candidate-signed.yml@9f4a1aab650b0a35f30729ff3e97013b1bb66490
