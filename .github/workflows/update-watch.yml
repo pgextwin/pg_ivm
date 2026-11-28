@@ -79,7 +79,7 @@ jobs:
       actions: read
       pull-requests: read
       checks: read
-    uses: pgextwin/build/.github/workflows/verify-native-pr-candidate.yml@98b26bde2cad0b44bbabe482d9966a79d6ec8cd7
+    uses: pgextwin/build/.github/workflows/verify-native-pr-candidate.yml@2cdc97df7cd5cb7d21993f165bafc4f111bfedc4
     with:
       ci_run_id: ${{ github.event.workflow_run.id }}
 
